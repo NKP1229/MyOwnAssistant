@@ -1,5 +1,6 @@
 import json
 import re
+pending_item = None
 
 def extract_name(text):
     text = text.lower()
@@ -21,10 +22,8 @@ def parse_natural_add(text):
     # Extract numbers (prices)
     numbers = re.findall(r"\d+\.?\d*", text)
     numbers = [float(n) for n in numbers]
-    if len(numbers) < 2:
-        return None
-    my_price = numbers[0]
-    market_price = numbers[1]
+    my_price = numbers[0] if len(numbers) > 0 else None
+    market_price = numbers[1] if len(numbers) > 1 else None
     # Extract priority
     if "high" in text:
         priority = "high"
@@ -198,6 +197,42 @@ def classify_intent(text):
         return "buy"
     return "unknown"
 
+def confirm_and_add(parsed):
+    print("\nI understood:")
+    print(f"- Item: {parsed['name']}")
+    print(f"- Your price: {parsed['my_price']}")
+    print(f"- Market price: {parsed['market_price']}")
+    print(f"- Priority: {parsed['priority']}")
+    confirm = input("Add this item? (y/n): ").lower()
+    if confirm == "y":
+        items = load_items()
+        items.append({
+            "name": parsed["name"],
+            "my_price": parsed["my_price"],
+            "market_price": parsed["market_price"],
+            "priority": parsed["priority"],
+            "purchased": False
+        })
+        save_items(items)
+        print(f"Added '{parsed['name']}'.")
+    else:
+        print("Cancelled.")
+
+def handle_followup(text):
+    global pending_item
+    numbers = [float(n) for n in re.findall(r"\d+\.?\d*", text)]
+    if pending_item["my_price"] is None and numbers:
+        pending_item["my_price"] = numbers[0]
+        print(f"Got it. Your price: {numbers[0]}")
+        return
+    if pending_item["market_price"] is None and numbers:
+        pending_item["market_price"] = numbers[0]
+        print(f"Got it. Market price: {numbers[0]}")
+        confirm_and_add(pending_item)
+        pending_item = None
+        return
+    print("I still need a number (price).")
+
 def handle_input(text):
     intent = classify_intent(text)
     print(f"[DEBUG] text='{text}' | intent='{intent}'")
@@ -207,29 +242,26 @@ def handle_input(text):
         handle_add_command(text)
     # 👇 NEW: try natural add if unknown
     elif intent == "unknown":
+        global pending_item
+        # If we're already in a follow-up flow
+        if pending_item:
+            handle_followup(text)
+            return
         parsed = parse_natural_add(text)
         if parsed:
-            print("\nI understood:")
-            print(f"- Item: {parsed['name']}")
-            print(f"- Your price: {parsed['my_price']}")
-            print(f"- Market price: {parsed['market_price']}")
-            print(f"- Priority: {parsed['priority']}")
-            confirm = input("Add this item? (y/n): ").lower()
-            if confirm == "y":
-                items = load_items()
-                items.append({
-                    "name": parsed["name"],
-                    "my_price": parsed["my_price"],
-                    "market_price": parsed["market_price"],
-                    "priority": parsed["priority"],
-                    "purchased": False
-                })
-                save_items(items)
-                print(f"Added '{parsed['name']}' to your list.")
-            else:
-                print("Cancelled.")
+            missing_fields = []
+            if parsed["my_price"] is None:
+                missing_fields.append("your price")
+            if parsed["market_price"] is None:
+                missing_fields.append("market price")
+            # 👇 If missing info → ask instead of confirming
+            if missing_fields:
+                pending_item = parsed
+                print(f"I need more info: {', '.join(missing_fields)}")
+                return
+            # 👇 Only confirm if complete
+            confirm_and_add(parsed)
             return
-
         print("I didn’t understand that. Try:")
         print("- add laptop 900 1200 high")
         print("- what should i buy")

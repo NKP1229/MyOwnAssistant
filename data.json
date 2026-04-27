@@ -2,15 +2,29 @@
   {
     "name": "corsair 850w psu",
     "my_price": 129.99,
-    "market_price": 130.0,
+    "market_price": 169.99,
     "priority": "high",
     "purchased": false
   },
   {
-    "name": "corsair 750w psu",
-    "my_price": 124.99,
-    "market_price": 100.0,
-    "priority": "high",
+    "name": "epomaker aula f75 max",
+    "my_price": 79.99,
+    "market_price": 79.99,
+    "priority": "medium",
+    "purchased": false
+  },
+  {
+    "name": "micron crucial p510",
+    "my_price": 189.99,
+    "market_price": 279.99,
+    "priority": "low",
+    "purchased": false
+  },
+  {
+    "name": "gigabyte rtx5070 gpu",
+    "my_price": 650.0,
+    "market_price": 650.0,
+    "priority": "medium",
     "purchased": false
   }
 ]
