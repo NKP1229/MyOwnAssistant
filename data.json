@@ -1,0 +1,16 @@
+[
+  {
+    "name": "corsair 850w psu",
+    "my_price": 129.99,
+    "market_price": 130.0,
+    "priority": "high",
+    "purchased": false
+  },
+  {
+    "name": "corsair 750w psu",
+    "my_price": 124.99,
+    "market_price": 100.0,
+    "priority": "high",
+    "purchased": false
+  }
+]
