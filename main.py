@@ -1,6 +1,7 @@
 import json
 import re
 pending_item = None
+pending_action = None
 FILE = "data.json"
 
 def extract_name(text):
@@ -239,6 +240,21 @@ def handle_followup(text):
     print("I still need a number (price).")
 
 def handle_input(text):
+    global pending_action
+    text = text.strip().lower()
+    # 👇 HANDLE FOLLOW-UP RESPONSES FIRST
+    if pending_action == "recommend_followup":
+        if text in ["yes", "y", "sure", "ok", "yeah", "yep", "yup"]:
+            pending_action = None
+            recommend()
+            return
+        elif text in ["no", "n", "nah", "nope"]:
+            pending_action = None
+            print("Is there anything else I can help with?")
+            return
+        else:
+            print("Please answer yes or no.")
+            return
     intent = classify_intent(text)
     print(f"[DEBUG] text='{text}' | intent='{intent}'")
     if intent == "recommend":
@@ -259,6 +275,7 @@ def handle_input(text):
                 item["purchased"] = True
                 save_items(items)
                 print(f"Marked '{item['name']}' as purchased.")
+                pending_action = "recommend_followup"
                 print("Nice—want a new recommendation?")
                 return
         # 👇 Step 3: Try fuzzy match (partial match)
