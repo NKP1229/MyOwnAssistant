@@ -1,5 +1,22 @@
 import json
+import re
 FILE = "data.json"
+VALUE_WEIGHT = 100
+PRIORITY_WEIGHT = 40
+OVERPAY_WEIGHT = 150
+
+def add_item(name, my_price, market_price, priority):
+    items = load_items()
+    item = {
+        "name": name,
+        "my_price": my_price,
+        "market_price": market_price,
+        "priority": priority,
+        "purchased": False
+    }
+    items.append(item)
+    save_items(items)
+    return item
 
 def load_items():
     try:
@@ -10,6 +27,12 @@ def load_items():
             return data
     except:
         return []
+
+def list_items():
+    items = load_items()
+    for i, item in enumerate(items):
+        status = "✓" if item["purchased"] else " "
+        print(f"{i}. [{status}] {item['name']}")
 
 def save_items(items):
     with open(FILE, "w") as f:
@@ -37,12 +60,10 @@ def score(item):
         priority_score *= priority_multiplier.get(priority, 1.0)
         # 🧠 OVERPAY PENALTY
         if discount < 0:
-            overpay_penalty = abs(discount_ratio) * 150
+            overpay_penalty = abs(discount_ratio) * OVERPAY_WEIGHT
         else:
             overpay_penalty = 0
         # ⚖️ WEIGHTS
-        VALUE_WEIGHT = 100
-        PRIORITY_WEIGHT = 40
         final_score = (
             discount_ratio * VALUE_WEIGHT +
             priority_score * PRIORITY_WEIGHT -
@@ -53,45 +74,24 @@ def score(item):
         return -999
 
 def recommend():
-    global last_recommendation
     items = load_items()
     valid_items = [
         i for i in items
         if not i.get("purchased")
         and i.get("my_price") is not None
         and i.get("market_price") is not None
-        and i["my_price"] <= i["market_price"]  # 🚨 key line
+        # allow all, scoring will decide
     ]
-    bad_items = [
-        i for i in items
-        if not i.get("purchased")
-        and i.get("my_price") is not None
-        and i.get("market_price") is not None
-        and i["my_price"] > i["market_price"]
-    ]
-    if bad_items and not valid_items:
-        print("All remaining items are above market price.")
-        print("You may want to wait for better deals.")
-        return
+    if not valid_items:
+        return None
     best = max(valid_items, key=score)
-    last_recommendation = best
-    savings = best["market_price"] - best["my_price"]
-    discount_pct = (savings / best["market_price"]) * 100 if best["market_price"] else 0
-    print("\n💡 Based on your items, here's what I recommend:")
-    print(f"You should buy: {best['name']}")
-    print("\nReasoning:")
-    print(f"- Priority: {best['priority']}")
-    if savings >= 0:
-        print(f"- Discount: {round(discount_pct, 1)}% (${round(savings, 2)} off)")
-    else:
-        print(f"- Over market by: ${round(abs(savings), 2)}")
-    print(f"- Score: {round(score(best), 2)}")
+    return best
 
 def parse_natural_add(text):
     text = text.lower()
     # Extract numbers (prices)
     numbers = re.findall(r"\d+\.?\d*", text)
-    numbers = [float(n) for n in numbers]
+    numbers = [float(n) for n in numbers] if numbers else []
     my_price = numbers[0] if len(numbers) > 0 else None
     market_price = numbers[1] if len(numbers) > 1 else None
     # Extract priority
@@ -103,16 +103,6 @@ def parse_natural_add(text):
         priority = "low"
     else:
         priority = "medium"
-    # Try to extract item name (very rough)
-    words = text.split("for")[0].split()
-    # remove filler words
-    stopwords = ["i", "found", "a", "for", "but", "its", "it's", "usually"]
-    filtered = [w for w in words if w not in stopwords]
-    # remove numbers and priority words
-    filtered = [
-        w for w in filtered
-        if not re.match(r"\d+\.?\d*", w) and w not in ["low", "medium", "high"]
-    ]
     # take first few words as name
     name = extract_name(text)
     return {
@@ -148,7 +138,7 @@ def is_match(text, item_name):
     text_words = text_words - stopwords
     # Count meaningful overlap
     overlap = text_words & item_words
-    return len(overlap) >= 1  # require at least 1 meaningful word
+    return len(overlap) >= max(1, len(item_words) // 2)  # require stronger match for longer name
 
 def classify_intent(text):
     text = text.lower().strip()
@@ -172,14 +162,13 @@ def classify_intent(text):
     return "unknown"
 
 def mark_item_purchased(item_name):
-    global pending_action
     items = load_items()
     for item in items:
-        if item["name"].lower() == item_name.lower():
+        if is_match(item_name, item["name"]):
             item["purchased"] = True
-            save_items(items)
-            print(f"Marked '{item['name']}' as purchased.")
-            pending_action = "recommend_followup"
-            print("Nice—want a new recommendation? (yes/no)")
-            return
-    print("Couldn't find that item.")
+            break
+    save_items(items)
+    return {
+        "success": False,
+        "error": "Item not found"
+    }

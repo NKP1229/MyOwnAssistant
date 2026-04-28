@@ -5,33 +5,11 @@ pending_action = None
 last_recommendation = None
 FILE = "data.json"
 
-def add_item():
-    name = input("Item name: ")
-    my_price = float(input("Your price: "))
-    market_price = float(input("Market price: "))
-    priority = input("Priority (low/medium/high): ")
-    items = load_items()
-    items.append({
-        "name": name,
-        "my_price": my_price,
-        "market_price": market_price,
-        "priority": priority,
-        "purchased": False
-    })
-    save_items(items)
-
 def list_items():
     items = load_items()
     for i, item in enumerate(items):
         status = "✓" if item["purchased"] else " "
         print(f"{i}. [{status}] {item['name']}")
-
-def mark_purchased():
-    list_items()
-    index = int(input("Which item did you buy? "))
-    items = load_items()
-    items[index]["purchased"] = True
-    save_items(items)
 
 def handle_add_command(text):
     try:
@@ -254,6 +232,20 @@ if __name__ == "__main__":
 #-----------------------------------------
 # Moved to Assistant_Core
 #-----------------------------------------
+def add_item():
+    name = input("Item name: ")
+    my_price = float(input("Your price: "))
+    market_price = float(input("Market price: "))
+    priority = input("Priority (low/medium/high): ")
+    items = load_items()
+    items.append({
+        "name": name,
+        "my_price": my_price,
+        "market_price": market_price,
+        "priority": priority,
+        "purchased": False
+    })
+    save_items(items)
 def load_items():
     try:
         with open(FILE, "r") as f:
@@ -428,3 +420,9 @@ def mark_item_purchased(item_name):
             print("Nice—want a new recommendation? (yes/no)")
             return
     print("Couldn't find that item.")
+def mark_purchased():
+    list_items()
+    index = int(input("Which item did you buy? "))
+    items = load_items()
+    items[index]["purchased"] = True
+    save_items(items)
