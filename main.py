@@ -91,20 +91,35 @@ def score(item):
         market_price = item.get("market_price")
         priority = item.get("priority", "low")
         if my_price is None or market_price is None:
-            return -1
-        savings = market_price - my_price
-        # 🚨 Penalize bad or zero savings
-        if savings <= 0:
-            savings_score = -50
+            return -999
+        # 🧠 VALUE (discount %)
+        discount = market_price - my_price
+        discount_ratio = discount / market_price if market_price else 0
+        # 🧠 PRIORITY
+        priority_score = priority_map.get(priority, 1)
+        # ✅ ADD IT RIGHT HERE
+        priority_multiplier = {
+            "low": 1.0,
+            "medium": 1.0,
+            "high": 1.2
+        }
+        priority_score *= priority_multiplier.get(priority, 1.0)
+        # 🧠 OVERPAY PENALTY
+        if discount < 0:
+            overpay_penalty = abs(discount_ratio) * 150
         else:
-            savings_ratio = savings / market_price
-            savings_score = savings_ratio * 100
-        return (
-            savings_score * 0.6 +
-            priority_map.get(priority, 1) * 40
+            overpay_penalty = 0
+        # ⚖️ WEIGHTS
+        VALUE_WEIGHT = 100
+        PRIORITY_WEIGHT = 40
+        final_score = (
+            discount_ratio * VALUE_WEIGHT +
+            priority_score * PRIORITY_WEIGHT -
+            overpay_penalty
         )
+        return final_score
     except:
-        return -1
+        return -999
     
 def recommend():
     global last_recommendation
@@ -130,11 +145,15 @@ def recommend():
     best = max(valid_items, key=score)
     last_recommendation = best
     savings = best["market_price"] - best["my_price"]
+    discount_pct = (savings / best["market_price"]) * 100 if best["market_price"] else 0
     print("\n💡 Based on your items, here's what I recommend:")
     print(f"You should buy: {best['name']}")
     print("\nReasoning:")
     print(f"- Priority: {best['priority']}")
-    print(f"- Savings: ${round(savings, 2)}")
+    if savings >= 0:
+        print(f"- Discount: {round(discount_pct, 1)}% (${round(savings, 2)} off)")
+    else:
+        print(f"- Over market by: ${round(abs(savings), 2)}")
     print(f"- Score: {round(score(best), 2)}")
 
 def list_items():
