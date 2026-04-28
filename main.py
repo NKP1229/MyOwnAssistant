@@ -179,8 +179,6 @@ def handle_buy_command(text):
             return
     # Fallback
     print("What did you buy? You can say:")
-    print("- bought gpu")
-    print("- bought 0 (from list)")
     list_items()
 
 def classify_intent(text):
@@ -250,10 +248,27 @@ def handle_input(text):
     # 👇 NEW: try natural add if unknown
     elif intent == "unknown":
         global pending_item
-        # If we're already in a follow-up flow
+        # 👇 Step 1: If we're in follow-up mode
         if pending_item:
             handle_followup(text)
             return
+        items = load_items()
+        # 👇 Step 2: Try matching existing item by name
+        for item in items:
+            if text.strip() in item["name"].lower():
+                item["purchased"] = True
+                save_items(items)
+                print(f"Marked '{item['name']}' as purchased.")
+                print("Nice—want a new recommendation?")
+                return
+        # 👇 Step 3: Try fuzzy match (partial match)
+        for item in items:
+            if item["name"].lower() in text:
+                item["purchased"] = True
+                save_items(items)
+                print(f"Marked '{item['name']}' as purchased.")
+                return
+        # 👇 Step 4: Only now try parsing as new item
         parsed = parse_natural_add(text)
         if parsed:
             missing_fields = []

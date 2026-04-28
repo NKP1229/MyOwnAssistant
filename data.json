@@ -25,6 +25,6 @@
     "my_price": 650.0,
     "market_price": 650.0,
     "priority": "medium",
-    "purchased": true
+    "purchased": false
   }
 ]
