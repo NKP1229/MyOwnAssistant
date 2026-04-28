@@ -11,19 +11,26 @@
     "my_price": 79.99,
     "market_price": 79.99,
     "priority": "medium",
-    "purchased": false
+    "purchased": true
   },
   {
     "name": "micron crucial p510",
     "my_price": 189.99,
     "market_price": 279.99,
     "priority": "low",
-    "purchased": false
+    "purchased": true
   },
   {
     "name": "gigabyte rtx5070 gpu",
     "my_price": 650.0,
     "market_price": 650.0,
+    "priority": "medium",
+    "purchased": true
+  },
+  {
+    "name": "amd gpu",
+    "my_price": 650.0,
+    "market_price": 600.0,
     "priority": "medium",
     "purchased": false
   }

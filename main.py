@@ -175,6 +175,19 @@ def handle_add_command(text):
     except:
         print("Format: add <name> <your_price> <market_price> <priority>")
 
+def is_match(text, item_name):
+    text_words = set(text.split())
+    item_words = set(item_name.lower().split())
+    # Remove useless words
+    stopwords = {
+        "i", "a", "the", "it", "is", "for", "and", "to",
+        "found", "new", "that", "this", "usually"
+    }
+    text_words = text_words - stopwords
+    # Count meaningful overlap
+    overlap = text_words & item_words
+    return len(overlap) >= 1  # require at least 1 meaningful word
+
 def handle_buy_command(text):
     global last_recommendation
     items = load_items()
@@ -195,11 +208,27 @@ def handle_buy_command(text):
         if 0 <= idx < len(items):
             mark_item_purchased(items[idx]["name"])
             return
-    # Try name match
+    # Try name match (with multi-match support)
+    matches = []
     for item in items:
-        if item["name"].lower() in text:
-            mark_item_purchased(item["name"])
-            return
+        if is_match(text, item["name"]):
+            matches.append(item)
+    # 👇 Handle results
+    if len(matches) == 1:
+        mark_item_purchased(matches[0]["name"])
+        return
+    elif len(matches) > 1:
+        print("I found multiple matching items:")
+        for i, item in enumerate(matches):
+            print(f"{i}. {item['name']}")
+        choice = input("Which one did you buy? (number): ")
+        if choice.isdigit():
+            idx = int(choice)
+            if 0 <= idx < len(matches):
+                mark_item_purchased(matches[idx]["name"])
+                return
+        print("Invalid selection.")
+        return
     # Fallback
     print("What did you buy? You can say:")
     list_items()
@@ -263,6 +292,7 @@ def handle_followup(text):
 
 def handle_input(text):
     global pending_action
+    global pending_item
     text = text.strip().lower()
     # 👇 HANDLE FOLLOW-UP RESPONSES FIRST
     if pending_action == "recommend_followup":
@@ -285,7 +315,46 @@ def handle_input(text):
         handle_add_command(text)
     # 👇 NEW: try natural add if unknown
     elif intent == "unknown":
-        global pending_item
+        # Step 1: follow-up
+        if pending_item:
+            handle_followup(text)
+            return
+        # Step 2: try parsing as NEW item FIRST
+        parsed = parse_natural_add(text)
+        if parsed:
+            missing_fields = []
+            if parsed["my_price"] is None:
+                missing_fields.append("your price")
+            if parsed["market_price"] is None:
+                missing_fields.append("market price")
+            if missing_fields:
+                pending_item = parsed
+                print(f"I need more info: {', '.join(missing_fields)}")
+                return
+            confirm_and_add(parsed)
+            return
+        # Step 3: ONLY IF parsing fails → try matching existing items
+        items = load_items()
+        matches = []
+        for item in items:
+            if is_match(text, item["name"]):
+                matches.append(item)
+        if len(matches) == 1:
+            mark_item_purchased(matches[0]["name"])
+            return
+        elif len(matches) > 1:
+            print("I found multiple matching items:")
+            for i, item in enumerate(matches):
+                print(f"{i}. {item['name']}")
+            choice = input("Which one did you buy? (number): ")
+            if choice.isdigit():
+                idx = int(choice)
+                if 0 <= idx < len(matches):
+                    mark_item_purchased(matches[idx]["name"])
+                    return
+            print("Invalid selection.")
+            return
+        print("I didn’t understand that. Try:")
         # 👇 Step 1: If we're in follow-up mode
         if pending_item:
             handle_followup(text)
@@ -298,7 +367,7 @@ def handle_input(text):
                 return
         # 👇 Step 3: Try fuzzy match (partial match)
         for item in items:
-            if item["name"].lower() in text:
+            if any(word in item["name"].lower() for word in text.split()):
                 mark_item_purchased(item["name"])
                 return
         # 👇 Step 4: Only now try parsing as new item
@@ -329,10 +398,8 @@ def handle_input(text):
 def main():
     while True:
         text = input("\nYou: ").lower()
-
         if text == "exit":
             break
-
         handle_input(text)
 
 if __name__ == "__main__":
