@@ -1,6 +1,11 @@
 ----------------------------------------------------------------------------
 This is my attempt at learning Python to make my own personal AI assistant
 ----------------------------------------------------------------------------
+* Install Python extension 
+* run in Terminal/Bash: 
+  - "pip install streamlit"
+  - "streamlit run app.py"
+----------------------------------------------------------------------------
 FILES:
   - data.json : stores json formatted data of purchases the user enters
   - main.py : python code to parse user input and perform correlating action
