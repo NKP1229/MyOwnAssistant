@@ -2,6 +2,7 @@ import json
 import re
 pending_item = None
 pending_action = None
+last_recommendation = None
 FILE = "data.json"
 
 def extract_name(text):
@@ -106,6 +107,7 @@ def score(item):
         return -1
     
 def recommend():
+    global last_recommendation
     items = load_items()
     valid_items = [
         i for i in items
@@ -116,8 +118,8 @@ def recommend():
     if not valid_items:
         print("No valid items to recommend.")
         return
-
     best = max(valid_items, key=score)
+    last_recommendation = best
     savings = best["market_price"] - best["my_price"]
     print("\n💡 Based on your items, here's what I recommend:")
     print(f"You should buy: {best['name']}")
@@ -138,6 +140,19 @@ def mark_purchased():
     items = load_items()
     items[index]["purchased"] = True
     save_items(items)
+
+def mark_item_purchased(item_name):
+    global pending_action
+    items = load_items()
+    for item in items:
+        if item["name"].lower() == item_name.lower():
+            item["purchased"] = True
+            save_items(items)
+            print(f"Marked '{item['name']}' as purchased.")
+            pending_action = "recommend_followup"
+            print("Nice—want a new recommendation? (yes/no)")
+            return
+    print("Couldn't find that item.")
 
 def handle_add_command(text):
     try:
@@ -161,22 +176,29 @@ def handle_add_command(text):
         print("Format: add <name> <your_price> <market_price> <priority>")
 
 def handle_buy_command(text):
+    global last_recommendation
     items = load_items()
     # Try index-based match
+    # 👇 NEW: handle "that" / "it"
+    if any(phrase in text for phrase in [
+        "that", "it", "the one", "the item", "that one"
+    ]):
+        if last_recommendation:
+            mark_item_purchased(last_recommendation["name"])
+            return
+        else:
+            print("I'm not sure what you're referring to.")
+            return
     numbers = re.findall(r"\d+", text)
     if numbers:
         idx = int(numbers[0])
         if 0 <= idx < len(items):
-            items[idx]["purchased"] = True
-            save_items(items)
-            print(f"Marked '{items[idx]['name']}' as purchased.")
+            mark_item_purchased(items[idx]["name"])
             return
     # Try name match
     for item in items:
         if item["name"].lower() in text:
-            item["purchased"] = True
-            save_items(items)
-            print("Nice—marking that as purchased. Want a new recommendation?")
+            mark_item_purchased(item["name"])
             return
     # Fallback
     print("What did you buy? You can say:")
@@ -244,11 +266,11 @@ def handle_input(text):
     text = text.strip().lower()
     # 👇 HANDLE FOLLOW-UP RESPONSES FIRST
     if pending_action == "recommend_followup":
-        if text in ["yes", "y", "sure", "ok", "yeah", "yep", "yup"]:
+        if text in ["yes", "y", "sure", "ok", "yeah", "yep", "yup", "yea", "yessir", "duh", "obviously"]:
             pending_action = None
             recommend()
             return
-        elif text in ["no", "n", "nah", "nope"]:
+        elif text in ["no", "n", "nah", "nope", "not"]:
             pending_action = None
             print("Is there anything else I can help with?")
             return
@@ -272,18 +294,12 @@ def handle_input(text):
         # 👇 Step 2: Try matching existing item by name
         for item in items:
             if text.strip() in item["name"].lower():
-                item["purchased"] = True
-                save_items(items)
-                print(f"Marked '{item['name']}' as purchased.")
-                pending_action = "recommend_followup"
-                print("Nice—want a new recommendation?")
+                mark_item_purchased(item["name"])
                 return
         # 👇 Step 3: Try fuzzy match (partial match)
         for item in items:
             if item["name"].lower() in text:
-                item["purchased"] = True
-                save_items(items)
-                print(f"Marked '{item['name']}' as purchased.")
+                mark_item_purchased(item["name"])
                 return
         # 👇 Step 4: Only now try parsing as new item
         parsed = parse_natural_add(text)
