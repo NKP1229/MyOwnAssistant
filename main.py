@@ -1,6 +1,7 @@
 import json
 import re
 pending_item = None
+FILE = "data.json"
 
 def extract_name(text):
     text = text.lower()
@@ -51,8 +52,6 @@ def parse_natural_add(text):
         "market_price": market_price,
         "priority": priority
     }
-
-FILE = "data.json"
 
 def load_items():
     try:
@@ -162,19 +161,27 @@ def handle_add_command(text):
 
 def handle_buy_command(text):
     items = load_items()
-    # Try to match item name
+    # Try index-based match
+    numbers = re.findall(r"\d+", text)
+    if numbers:
+        idx = int(numbers[0])
+        if 0 <= idx < len(items):
+            items[idx]["purchased"] = True
+            save_items(items)
+            print(f"Marked '{items[idx]['name']}' as purchased.")
+            return
+    # Try name match
     for item in items:
         if item["name"].lower() in text:
             item["purchased"] = True
             save_items(items)
-            print(f"Marked '{item['name']}' as purchased.")
+            print("Nice—marking that as purchased. Want a new recommendation?")
             return
-    # If user just says "bought"
-    if text.strip() == "bought":
-        print("Tell me what you bought, e.g.:")
-        print("- bought corsair psu")
-        return
-    print("Couldn't find that item.")
+    # Fallback
+    print("What did you buy? You can say:")
+    print("- bought gpu")
+    print("- bought 0 (from list)")
+    list_items()
 
 def classify_intent(text):
     text = text.lower().strip()
@@ -193,7 +200,7 @@ def classify_intent(text):
     if any(word in text for word in ["list", "show", "items"]):
         return "list"
     # BUY / MARK PURCHASED
-    if text.startswith("buy ") or "bought" in text:
+    if any(word in text for word in ["bought", "purchase", "purchased"]) or text.startswith("buy "):
         return "buy"
     return "unknown"
 
