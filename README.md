@@ -16,16 +16,16 @@ HOW TO USE:
    - Buy        (Mark item in data.json as bought/purchased)
 
  TEST:
-  -> "I found a new amd gpu for 650 and it is usually 600 medium priority"
-  -> "What should I buy?"
-  -> "I bought the epomaker keyboard"
+   -> "I found a new amd gpu for 650 and it is usually 600 medium priority"
+   -> "What should I buy?"
+   -> "I bought the epomaker keyboard"
 ----------------------------------------------------------------------------
 STRUCTURE OF DATA:
 {
-  "name": "epomaker aula f75 max",
-  "my_price": 69.99,
-  "market_price": 79.99,
-  "priority": "medium",
-  "purchased": true
+   "name": "epomaker aula f75 max",
+   "my_price": 69.99,
+   "market_price": 79.99,
+   "priority": "medium",
+   "purchased": true
 },
 ----------------------------------------------------------------------------

@@ -111,12 +111,21 @@ def recommend():
     items = load_items()
     valid_items = [
         i for i in items
-        if not i.get("purchased") and
-        "my_price" in i and
-        "market_price" in i
+        if not i.get("purchased")
+        and i.get("my_price") is not None
+        and i.get("market_price") is not None
+        and i["my_price"] <= i["market_price"]  # 🚨 key line
     ]
-    if not valid_items:
-        print("No valid items to recommend.")
+    bad_items = [
+        i for i in items
+        if not i.get("purchased")
+        and i.get("my_price") is not None
+        and i.get("market_price") is not None
+        and i["my_price"] > i["market_price"]
+    ]
+    if bad_items and not valid_items:
+        print("All remaining items are above market price.")
+        print("You may want to wait for better deals.")
         return
     best = max(valid_items, key=score)
     last_recommendation = best

@@ -26,12 +26,5 @@
     "market_price": 650.0,
     "priority": "medium",
     "purchased": false
-  },
-  {
-    "name": "amd gpu",
-    "my_price": 650.0,
-    "market_price": 600.0,
-    "priority": "medium",
-    "purchased": false
   }
 ]
