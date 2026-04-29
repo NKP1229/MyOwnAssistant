@@ -4,27 +4,31 @@
     "my_price": 129.99,
     "market_price": 169.99,
     "priority": "high",
-    "purchased": false
+    "purchased": false,
+    "category": "psu"
   },
   {
     "name": "epomaker aula f75 max",
     "my_price": 79.99,
     "market_price": 79.99,
     "priority": "medium",
-    "purchased": false
+    "purchased": false,
+    "category": "keyboard"
   },
   {
     "name": "micron crucial p510 ssd",
     "my_price": 189.99,
     "market_price": 279.99,
     "priority": "low",
-    "purchased": false
+    "purchased": false,
+    "category": "ssd"
   },
   {
     "name": "gigabyte rtx5070 gpu",
     "my_price": 650.0,
     "market_price": 650.0,
     "priority": "medium",
-    "purchased": false
+    "purchased": false,
+    "category": "gpu"
   }
 ]
