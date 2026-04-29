@@ -91,6 +91,41 @@ def score(item):
     except:
         return -999
 
+def explain_score(item):
+    reasons = []
+
+    my = item.get("my_price")
+    market = item.get("market_price")
+    priority = item.get("priority", "low")
+
+    if my is None or market is None:
+        return ["Missing price data"]
+
+    savings = market - my
+    discount_pct = (savings / market) * 100 if market else 0
+
+    # 💰 VALUE
+    if savings > 0:
+        reasons.append(f"💰 {round(discount_pct, 1)}% below market price")
+    else:
+        reasons.append(f"⚠️ Over market by ${round(abs(savings), 2)}")
+
+    # 🎯 PRIORITY
+    if priority == "high":
+        reasons.append("🔥 High priority item")
+    elif priority == "medium":
+        reasons.append("⚖️ Medium priority balance")
+    else:
+        reasons.append("🟢 Low urgency item")
+
+    # 🧠 LOGIC INSIGHT
+    score_val = score(item)
+    if score_val > 100:
+        reasons.append("🚀 Extremely strong value score")
+    elif score_val > 50:
+        reasons.append("👍 Good value deal")
+
+    return reasons
 
 # -------------------------
 # RECOMMEND (TOP 3)
