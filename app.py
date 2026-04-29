@@ -4,53 +4,110 @@ import assistant_core as core
 st.title("🧠 Purchase Assistant")
 
 # -------------------------
-# ADD ITEM
+# SESSION STATE (chat memory)
 # -------------------------
-st.header("Add Item")
-name = st.text_input("Item name")
-my_price = st.number_input("Your price", min_value=0.0)
-market_price = st.number_input("Market price", min_value=0.0)
-priority = st.selectbox("Priority", ["low", "medium", "high"])
-if st.button("Add Item"):
-    if not name.strip():
-        st.warning("Please enter an item name.")
-    elif my_price <= 0 or market_price <= 0:
-        st.warning("Prices must be greater than 0.")
-    else:
-        item = core.add_item(name, my_price, market_price, priority)
-        st.success(f"Added {item['name']}")
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # -------------------------
-# LIST ITEMS
+# DISPLAY CHAT HISTORY
 # -------------------------
-st.header("Your Items")
-items = core.load_items()
-for i, item in enumerate(items):
-    col1, col2 = st.columns([4, 1])
-    status = "✅" if item["purchased"] else "❌"
-    col1.write(f"{status} {item['name']}")
-    if not item["purchased"]:
-        if col2.button("Mark Bought", key=f"buy_{i}"):
-            item["purchased"] = True
-            core.save_items(items)
-            st.rerun()
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
 
 # -------------------------
-# RECOMMENDATION
+# USER INPUT
 # -------------------------
-st.header("Recommendation")
-if st.button("What should I buy?"):
-    best = core.recommend()
-    if best:
-        savings = best["market_price"] - best["my_price"]
-        discount_pct = (savings / best["market_price"]) * 100 if best["market_price"] else 0
-        st.success(f"You should buy: {best['name']}")
-        st.write("**Reasoning:**")
-        st.write(f"- Priority: {best['priority']}")
-        if savings >= 0:
-            st.write(f"- Discount: {round(discount_pct, 1)}% (${round(savings, 2)} off)")
+user_input = st.chat_input("What do you want to do?")
+
+if user_input:
+    # show user message
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    with st.chat_message("user"):
+        st.write(user_input)
+
+    # -------------------------
+    # PROCESS INPUT
+    # -------------------------
+    intent = core.classify_intent(user_input)
+
+    response = ""
+
+    # RECOMMEND
+    if intent == "recommend":
+        best = core.recommend()
+        if best:
+            savings = best["market_price"] - best["my_price"]
+            response = f"💡 You should buy: **{best['name']}**\n\n"
+            response += f"- Priority: {best['priority']}\n"
+            response += f"- Score: {round(core.score(best), 2)}\n"
+
+            if savings >= 0:
+                response += f"- Savings: ${round(savings, 2)}"
+            else:
+                response += f"- Overpay: ${round(abs(savings), 2)}"
         else:
-            st.write(f"- Over market by: ${round(abs(savings), 2)}")
-        st.write(f"- Score: {round(core.score(best), 2)}")
+            response = "No good deals right now."
+
+    # ADD (natural language)
+    elif intent == "unknown":
+        parsed = core.parse_natural_add(user_input)
+
+        if parsed["my_price"] and parsed["market_price"]:
+            item = core.add_item(
+                parsed["name"],
+                parsed["my_price"],
+                parsed["market_price"],
+                parsed["priority"]
+            )
+            response = f"✅ Added **{item['name']}**"
+        else:
+            response = "I need more info (price / market price)."
+
+    # LIST
+    elif intent == "list":
+        items = core.load_items()
+        if not items:
+            response = "No items yet."
+        else:
+            response = "🧾 Your items:\n"
+            for item in items:
+                status = "✅" if item["purchased"] else "❌"
+                response += f"- {status} {item['name']}\n"
+
+    # BUY
+    elif intent == "buy":
+        items = core.load_items()
+        matched = None
+        # 1. Strong match
+        for item in items:
+            if core.is_match(user_input, item["name"]):
+                matched = item
+                break
+        # 2. Fallback: partial keyword match
+        if not matched:
+            for item in items:
+                words = item["name"].lower().split()
+                if any(word in user_input for word in words):
+                    matched = item
+                    break
+
+        if matched:
+            result = core.mark_item_purchased(matched["name"])
+            if result["success"]:
+                response = f"🛒 Marked **{matched['name']}** as purchased."
+            else:
+                response = result["error"]
+        else:
+            response = "Couldn't find that item."
+
     else:
-        st.warning("No good deals right now. You might want to wait.")
+        response = "I didn’t understand that."
+
+    # -------------------------
+    # SHOW RESPONSE
+    # -------------------------
+    st.session_state.messages.append({"role": "assistant", "content": response})
+    with st.chat_message("assistant"):
+        st.write(response)
