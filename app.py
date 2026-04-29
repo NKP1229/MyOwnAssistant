@@ -117,35 +117,55 @@ if user_input:
     # COMPARE
     # =========================
     elif intent == "compare":
-        results = core.compare_items(user_input)
-        if not results:
-            response = "I couldn't find enough items to compare."
+        category = core.extract_category(user_input)
+        # -------------------------
+        # 🔥 CASE 1: compare ALL in category
+        # -------------------------
+        if category:
+            results = core.compare_category(category)
+            if not results:
+                response = f"Not enough items in category '{category}' to compare."
+            else:
+                response = f"⚔️ **All {category.upper()} comparison**\n\n"
+                for i, (item, sc) in enumerate(results):
+                    savings = item["market_price"] - item["my_price"]
+                    response += f"### {i+1}. {item['name']}\n"
+                    response += f"- Score: {round(sc, 2)}\n"
+                    response += f"- Price: ${item['my_price']} (market ${item['market_price']})\n"
+                    if savings >= 0:
+                        response += f"- Savings: ${round(savings, 2)}\n"
+                    else:
+                        response += f"- Overpay: ${round(abs(savings), 2)}\n"
+                    reasons = core.explain_score(item)
+                    for r in reasons:
+                        response += f"- {r}\n"
+                    response += "\n"
+                best = results[0][0]
+                response += f"🏆 **Best {category}: {best['name']}**"
+        # -------------------------
+        # ⚔️ CASE 2: compare specific items (existing logic)
+        # -------------------------
         else:
-            response = "⚔️ **Comparison**\n\n"
-            for i, (item, sc) in enumerate(results):
-                savings = item["market_price"] - item["my_price"]
-                response += f"### {i+1}. {item['name']}\n"
-                response += f"- Score: {round(sc, 2)}\n"
-                response += f"- Price: ${item['my_price']} (market ${item['market_price']})\n"
-                if savings >= 0:
-                    response += f"- Savings: ${round(savings, 2)}\n"
-                else:
-                    response += f"- Overpay: ${round(abs(savings), 2)}\n"
-                reasons = core.explain_score(item)
-                for r in reasons:
-                    response += f"- {r}\n"
-                response += "\n"
-            # 🧠 highlight winner
-            best = results[0][0]
-            response += f"\n🏆 **Best choice: {best['name']}**"
-            # 🧠 Explain winner vs second place
-            if len(results) >= 2:
-                a = results[0][0]
-                b = results[1][0]
-                winner, reasons = core.compare_reasoning(a, b)
-                response += f"\n\n🧠 **Why {winner['name']} beats {b['name']}**\n"
-                for r in reasons:
-                    response += f"- {r}\n"
+            results = core.compare_items(user_input)
+            if not results:
+                response = "I couldn't find enough items to compare."
+            else:
+                response = "⚔️ **Comparison**\n\n"
+                for i, (item, sc) in enumerate(results):
+                    savings = item["market_price"] - item["my_price"]
+                    response += f"### {i+1}. {item['name']}\n"
+                    response += f"- Score: {round(sc, 2)}\n"
+                    response += f"- Price: ${item['my_price']} (market ${item['market_price']})\n"
+                    if savings >= 0:
+                        response += f"- Savings: ${round(savings, 2)}\n"
+                    else:
+                        response += f"- Overpay: ${round(abs(savings), 2)}\n"
+                    reasons = core.explain_score(item)
+                    for r in reasons:
+                        response += f"- {r}\n"
+                    response += "\n"
+                best = results[0][0]
+                response += f"\n🏆 **Best choice: {best['name']}**"
 
     # =========================
     # ITEM INSPECTION MODE

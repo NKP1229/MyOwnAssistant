@@ -161,6 +161,9 @@ def compare_reasoning(a, b):
     reasons = []
     score_a = score(a)
     score_b = score(b)
+    # 🧠 TIE DETECTION
+    if abs(score_a - score_b) < 1e-6:
+        return None, ["These items are equally good based on your criteria."]
     if score_a > score_b:
         winner, loser = a, b
     else:
@@ -179,7 +182,23 @@ def compare_reasoning(a, b):
         reasons.append(f"{a['name']} is overpriced")
     if b["my_price"] > b["market_price"]:
         reasons.append(f"{b['name']} is overpriced")
+    # FALLBACK (if no clear reason)
+    if not reasons:
+        reasons.append("Scores are very close, decision is marginal.")
     return winner, reasons
+
+def compare_category(category):
+    items = load_items()
+    filtered = [
+        i for i in items
+        if i.get("category") == category
+        and not i.get("purchased")
+    ]
+    if len(filtered) < 2:
+        return []
+    scored = [(item, score(item)) for item in filtered]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored
 
 # -------------------------
 # NATURAL PARSE
@@ -226,6 +245,13 @@ def extract_name(text):
     stopwords = {"i", "found", "a", "an", "the", "this", "it", "its"}
     filtered = [w for w in words if w not in stopwords]
     return " ".join(filtered[:2]) or "unknown item"
+
+def extract_category(text):
+    categories = ["gpu", "storage", "psu", "desk", "general"]
+    for c in categories:
+        if c in text:
+            return c
+    return None
 
 # -------------------------
 # MARK PURCHASED (FIXED)
