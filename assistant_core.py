@@ -77,16 +77,16 @@ def score(item):
 
 def recommend():
     items = load_items()
-    if all(score(i) < 0 for i in valid_items):
-        return None
     valid_items = [
         i for i in items
         if not i.get("purchased")
         and i.get("my_price") is not None
         and i.get("market_price") is not None
-        # allow all, scoring will decide
     ]
     if not valid_items:
+        return None
+    # Optional: filter out bad deals
+    if all(score(i) < 0 for i in valid_items):
         return None
     best = max(valid_items, key=score)
     return best
