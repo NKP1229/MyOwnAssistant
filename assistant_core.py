@@ -6,6 +6,8 @@ PRIORITY_WEIGHT = 40
 OVERPAY_WEIGHT = 150
 
 def add_item(name, my_price, market_price, priority):
+    if not name.strip():
+        return None
     items = load_items()
     item = {
         "name": name,
@@ -75,6 +77,8 @@ def score(item):
 
 def recommend():
     items = load_items()
+    if all(score(i) < 0 for i in valid_items):
+        return None
     valid_items = [
         i for i in items
         if not i.get("purchased")
@@ -128,17 +132,17 @@ def extract_name(text):
     return name if name else "unknown item"
 
 def is_match(text, item_name):
-    text_words = set(text.split())
+    text_words = set(text.lower().split())
     item_words = set(item_name.lower().split())
-    # Remove useless words
     stopwords = {
         "i", "a", "the", "it", "is", "for", "and", "to",
-        "found", "new", "that", "this", "usually"
+        "found", "new", "that", "this", "usually", "bought"
     }
-    text_words = text_words - stopwords
-    # Count meaningful overlap
+    text_words -= stopwords
+    item_words -= stopwords
     overlap = text_words & item_words
-    return len(overlap) >= max(1, len(item_words) // 2)  # require stronger match for longer name
+    # Require at least 1 shared meaningful word
+    return len(overlap) >= max(1, len(item_words) // 2)
 
 def classify_intent(text):
     text = text.lower().strip()
@@ -161,14 +165,18 @@ def classify_intent(text):
         return "buy"
     return "unknown"
 
-def mark_item_purchased(item_name):
+def mark_item_purchased(text):
     items = load_items()
     for item in items:
-        if is_match(item_name, item["name"]):
+        # ✅ exact match first (very important)
+        if item["name"].lower() == text.lower():
             item["purchased"] = True
-            break
-    save_items(items)
-    return {
-        "success": False,
-        "error": "Item not found"
-    }
+            save_items(items)
+            return {"success": True, "item": item}
+    for item in items:
+        # ✅ fuzzy match fallback
+        if is_match(text, item["name"]):
+            item["purchased"] = True
+            save_items(items)
+            return {"success": True, "item": item}
+    return {"success": False, "error": "Item not found"}
