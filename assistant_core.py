@@ -46,6 +46,14 @@ def add_item(name, my_price, market_price, priority, category="general"):
     save_items(items)
     return item
 
+def apply_user_filters(items, max_price=None, priority=None):
+    filtered = items
+    if max_price is not None:
+        filtered = [i for i in filtered if i["my_price"] <= max_price]
+    if priority and priority != "all":
+        filtered = [i for i in filtered if i["priority"] == priority]
+    return filtered
+
 # -------------------------
 # MATCHING
 # -------------------------
@@ -138,24 +146,35 @@ def recommend(top_n=3):
 
 def compare_items(query):
     items = load_items()
-    # 1. Try category match first
-    category = detect_category(query)
-    matched = [
+    # Remove purchased + invalid
+    valid = [
         i for i in items
-        if i.get("category") == category and not i.get("purchased")
+        if not i.get("purchased")
+        and i.get("my_price") is not None
+        and i.get("market_price") is not None
     ]
-    # 2. If no category match → fallback to name match
-    if len(matched) < 2:
-        matched = [
-            i for i in items
-            if is_match(query, i["name"]) and not i.get("purchased")
-        ]
-    if len(matched) < 2:
-        return None
-    # Score and sort
-    scored = [(i, score(i)) for i in matched]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return scored
+    # -------------------------
+    # 1. Category match
+    # -------------------------
+    category = detect_category(query)
+    if category:
+        matched = [i for i in valid if i.get("category") == category]
+        if len(matched) >= 2:
+            scored = [(i, score(i)) for i in matched]
+            scored.sort(key=lambda x: x[1], reverse=True)
+            return scored
+    # -------------------------
+    # 2. Name match
+    # -------------------------
+    matched = [i for i in valid if is_match(query, i["name"])]
+    if len(matched) >= 2:
+        scored = [(i, score(i)) for i in matched]
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored
+    # -------------------------
+    # 3. Smart fallback (NEW 🔥)
+    # -------------------------
+    return filter_items(query)
 
 def compare_reasoning(a, b):
     reasons = []
@@ -187,18 +206,49 @@ def compare_reasoning(a, b):
         reasons.append("Scores are very close, decision is marginal.")
     return winner, reasons
 
-def compare_category(category):
-    items = load_items()
-    filtered = [
+def compare_category(category, items=None):
+    if items is None:
+        items = load_items()
+    matched = [
         i for i in items
-        if i.get("category") == category
-        and not i.get("purchased")
+        if i.get("category") == category and not i.get("purchased")
     ]
-    if len(filtered) < 2:
-        return []
-    scored = [(item, score(item)) for item in filtered]
+    if len(matched) < 2:
+        return None
+    scored = [(i, score(i)) for i in matched]
     scored.sort(key=lambda x: x[1], reverse=True)
     return scored
+
+def filter_items(text, limit=5):
+    items = load_items()
+    results = [
+        i for i in items
+        if not i.get("purchased")
+        and i.get("my_price") is not None
+        and i.get("market_price") is not None
+    ]
+    text = text.lower()
+    # 💰 under budget
+    numbers = re.findall(r"\d+\.?\d*", text)
+    if "under" in text and numbers:
+        limit_price = float(numbers[0])
+        results = [i for i in results if i["my_price"] <= limit_price]
+    # 🎯 priority filter
+    if "high" in text:
+        results = [i for i in results if i["priority"] == "high"]
+    elif "medium" in text:
+        results = [i for i in results if i["priority"] == "medium"]
+    elif "low" in text:
+        results = [i for i in results if i["priority"] == "low"]
+    # 💸 cheapest
+    if "cheap" in text or "lowest" in text:
+        results.sort(key=lambda x: x["my_price"])
+        results = results[:limit]   # ✅ LIMIT HERE
+        return [(i, score(i)) for i in results]
+    # 🔥 best value (default)
+    scored = [(i, score(i)) for i in results]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:limit]  # ✅ ALSO LIMIT HERE
 
 # -------------------------
 # NATURAL PARSE

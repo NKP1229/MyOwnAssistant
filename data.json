@@ -4,7 +4,7 @@
     "my_price": 129.99,
     "market_price": 169.99,
     "priority": "high",
-    "purchased": false,
+    "purchased": true,
     "category": "psu"
   },
   {
