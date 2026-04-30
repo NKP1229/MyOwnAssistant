@@ -34,6 +34,11 @@ def save_items(items):
 
 def add_item(name, my_price, market_price, priority, category="general"):
     items = load_items()
+    # 🔴 DUPLICATE CHECK (ADD THIS HERE)
+    for item in items:
+        if is_match(name, item["name"]):
+            return {"error": "Item already exists"}
+    # ✅ create new item
     item = {
         "name": name,
         "my_price": my_price,
@@ -62,7 +67,7 @@ def is_match(text, item_name):
     item_words = set(item_name.lower().split())
     stopwords = {
         "i", "a", "the", "it", "is", "for", "and", "to",
-        "found", "new", "that", "this", "usually", "bought"
+        "found", "new", "that", "this", "usually", "bought", "new"
     }
     text_words -= stopwords
     item_words -= stopwords
@@ -255,10 +260,14 @@ def filter_items(text, limit=5):
 # -------------------------
 def detect_category(text):
     text = text.lower()
-    if any(w in text for w in ["gpu", "rtx", "graphics"]):
+    if any(w in text for w in ["gpu", "rtx", "graphics", "nvidia"]):
         return "gpu"
-    if any(w in text for w in ["ssd", "nvme", "storage"]):
-        return "storage"
+    if any(w in text for w in ["cpu", "ryzen", "core", "i3", "i5", "i7", "i9"]):
+        return "cpu"
+    if any(w in text for w in ["ssd", "nvme", "storage", "nvme", "m.2"]):
+        return "ssd"
+    if any(w in text for w in ["ram"]):
+        return "ram"
     if any(w in text for w in ["psu", "power"]):
         return "psu"
     if any(w in text for w in ["desk", "table"]):
@@ -268,10 +277,8 @@ def detect_category(text):
 def parse_natural_add(text):
     text = text.lower()
     category = detect_category(text)
-    numbers = re.findall(r"\d+\.?\d*", text)
-    numbers = [float(n) for n in numbers] if numbers else []
-    my_price = numbers[0] if len(numbers) > 0 else None
-    market_price = numbers[1] if len(numbers) > 1 else None
+    my_price, market_price = extract_prices(text)
+    # priority
     if "high" in text:
         priority = "high"
     elif "medium" in text:
@@ -292,9 +299,10 @@ def parse_natural_add(text):
 def extract_name(text):
     text = re.split(r"\bfor\b|\bis\b|\bthat\b|\bbut\b", text)[0]
     words = text.split()
-    stopwords = {"i", "found", "a", "an", "the", "this", "it", "its"}
+    stopwords = {"i", "just", "found", "a", "an", "the", "this", "it", "its", "new"}
     filtered = [w for w in words if w not in stopwords]
-    return " ".join(filtered[:2]) or "unknown item"
+    # keep more words (important fix)
+    return " ".join(filtered[:5]) or "unknown item"
 
 def extract_category(text):
     mapping = {
@@ -310,6 +318,39 @@ def extract_category(text):
             if w in text:
                 return key
     return None
+
+def extract_prices(text):
+    text = text.lower()
+    # ONLY numbers near money words
+    money_keywords = ["for", "cost", "price", "paid", "worth", "usually", "market", "$"]
+    numbers = []
+    tokens = text.split()
+    for i, token in enumerate(tokens):
+        cleaned = token.replace("$", "")
+        if cleaned.replace(".", "", 1).isdigit():
+            value = float(cleaned)
+            window = " ".join(tokens[max(0, i-3): i+3])
+            if is_likely_price(value):
+                numbers.append((value, window))
+    my_price = None
+    market_price = None
+    for value, window in numbers:
+        if any(k in window for k in ["for", "paid", "cost", "got", "buy"]):
+            if my_price is None:
+                my_price = value
+        if any(k in window for k in ["worth", "market", "usually", "normal", "retail"]):
+            if market_price is None:
+                market_price = value
+    # fallback (ONLY clean large numbers, not CPU models)
+    raw = [v for v, _ in numbers]
+    if my_price is None and len(raw) >= 1:
+        my_price = raw[0]
+    if market_price is None and len(raw) >= 2:
+        market_price = raw[1]
+    return my_price, market_price
+
+def is_likely_price(value):
+    return 5 <= value <= 50000
 
 # -------------------------
 # MARK PURCHASED (FIXED)

@@ -225,7 +225,7 @@ if user_input:
             response += "- compare under 200\n"
             response += "- compare gpu\n"
             response += "- why is #1 better than #2\n"
-            
+
     # =========================
     # ITEM INSPECTION MODE
     # =========================
@@ -247,9 +247,12 @@ if user_input:
                 response += f"- {r}\n"
         else:
             parsed = core.parse_natural_add(user_input)
-            if parsed["my_price"] and parsed["market_price"]:
-                item = core.add_item(**parsed)
-                response = f"✅ Added **{item['name']}**"
+            if parsed["my_price"] is not None and parsed["market_price"] is not None:
+                result = core.add_item(**parsed)
+                if "error" in result:
+                    response = f"⚠️ {result['error']}"
+                else:
+                    response = f"✅ Added **{result['name']}**"
             else:
                 response = "I didn’t understand that. Try 'what should I buy?' or 'tell me about GPU'."
 

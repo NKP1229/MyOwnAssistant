@@ -63,7 +63,7 @@ def handle_input(text):
     # -------------------------
     else:
         parsed = core.parse_natural_add(text)
-        if parsed["my_price"] and parsed["market_price"]:
+        if parsed["my_price"] is not None and parsed["market_price"] is not None:
             core.add_item(**parsed)
             print(f"Added {parsed['name']}")
         else:
