@@ -8,7 +8,7 @@
     "category": "psu"
   },
   {
-    "name": "epomaker aula f75 max",
+    "name": "epomaker aula f75 max keyboard",
     "my_price": 79.99,
     "market_price": 79.99,
     "priority": "medium",
@@ -30,5 +30,21 @@
     "priority": "medium",
     "purchased": false,
     "category": "gpu"
+  },
+  {
+    "name": "kerdom ergo office chair",
+    "my_price": 85.99,
+    "market_price": 149.99,
+    "priority": "low",
+    "purchased": false,
+    "category": "chair"
+  },
+  {
+    "name": "Huuger standing desk (55x28 inch)",
+    "my_price": 132.99,
+    "market_price": 179.99,
+    "priority": "medium",
+    "purchased": false,
+    "category": "desk"
   }
 ]

@@ -89,29 +89,27 @@ if user_input:
         if not items:
             response = "No items yet."
         else:
-            st.write("🧾 Edit your items below:")
-            edited = st.data_editor(
-                items,
-                num_rows="dynamic",
-                use_container_width=True,
-                column_config={
-                    "name": st.column_config.TextColumn("Item"),
-                    "my_price": st.column_config.NumberColumn("Your Price"),
-                    "market_price": st.column_config.NumberColumn("Market Price"),
-                    "priority": st.column_config.SelectboxColumn(
-                        "Priority",
-                        options=["low", "medium", "high"]
-                    ),
-                    "category": st.column_config.SelectboxColumn(
-                        "Category",
-                        options=["gpu", "storage", "psu", "desk", "general"]
-                    ),
-                    "purchased": st.column_config.CheckboxColumn("Bought")
-                }
-            )
-            # Save changes automatically
-            core.save_items(edited)
-            response = "✏️ Changes saved automatically."
+            response = "🧾 **Your items by category:**\n\n"
+            grouped = {}
+            for item in items:
+                cat = item.get("category", "uncategorized")
+                grouped.setdefault(cat, []).append(item)
+            for cat, group_items in grouped.items():
+                response += f"## {cat.upper()}\n"
+                for item in group_items:
+                    status = "✅" if item["purchased"] else "❌"
+                    savings = item["market_price"] - item["my_price"]
+                    score_val = round(core.score(item), 2)
+                    response += f"**{status} {item['name']}**\n"
+                    response += f"- 💰 Price: ${item['my_price']} (market ${item['market_price']})\n"
+                    response += f"- 📊 Score: {score_val}\n"
+                    response += f"- 🎯 Priority: {item['priority']}\n"
+                    if savings >= 0:
+                        response += f"- 🟢 Savings: ${round(savings, 2)}\n"
+                    else:
+                        response += f"- 🔴 Overpay: ${round(abs(savings), 2)}\n"
+                    response += "\n"
+                response += "---\n"
 
     # =========================
     # COMPARE

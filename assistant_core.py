@@ -247,10 +247,18 @@ def extract_name(text):
     return " ".join(filtered[:2]) or "unknown item"
 
 def extract_category(text):
-    categories = ["gpu", "storage", "psu", "desk", "general"]
-    for c in categories:
-        if c in text:
-            return c
+    mapping = {
+        "gpu": ["gpu", "graphics"],
+        "psu": ["psu", "power"],
+        "storage": ["ssd", "storage", "drive"],
+        "desk": ["desk"],
+        "chair": ["chair"],
+        "keyboard": ["keyboard"]
+    }
+    for key, words in mapping.items():
+        for w in words:
+            if w in text:
+                return key
     return None
 
 # -------------------------
