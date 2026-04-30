@@ -231,34 +231,78 @@ if user_input:
     # =========================
     elif intent == "unknown":
         items = core.load_items()
-        matched = None
-        for item in items:
-            if core.is_match(user_input, item["name"]):
-                matched = item
-                break
+        # =========================
+        # 1. CATEGORY MODE
+        # =========================
+        category = core.detect_category(user_input)
+        if category:
+            matched = [i for i in items if i.get("category") == category]
+            if matched:
+                response = f"📦 **All {category.upper()} items**\n\n"
+                for item in matched:
+                    savings = item["market_price"] - item["my_price"]
+                    response += f"**{item['name']}**\n"
+                    response += f"- 💰 {item['my_price']} → {item['market_price']}\n"
+                    response += f"- 🎯 {item['priority']}\n"
+                    response += f"- 📊 Score: {round(core.score(item), 2)}\n"
+                    response += f"- {'🟢 Savings' if savings >= 0 else '🔴 Overpay'}: ${round(abs(savings), 2)}\n\n"
+                st.session_state.messages.append({"role": "assistant", "content": response})
+                st.chat_message("assistant").markdown(response)
+                st.stop()   # ✅ IMPORTANT (NOT return)
+        # =========================
+        # 2. ITEM INSPECTION MODE
+        # =========================
+        matched = next(
+            (item for item in items if core.is_match(user_input, item["name"])),
+            None
+        )
         if matched:
             reasons = core.explain_score(matched)
             response = f"📦 **{matched['name']}**\n\n"
-            response += f"- Your price: ${matched['my_price']}\n"
-            response += f"- Market price: ${matched['market_price']}\n"
-            response += f"- Priority: {matched['priority']}\n\n"
-            response += "**Analysis**\n"
+            response += f"- 💰 Your price: ${matched['my_price']}\n"
+            response += f"- 🏪 Market price: ${matched['market_price']}\n"
+            response += f"- 🎯 Priority: {matched['priority']}\n\n"
+            response += "**Why this matters**\n"
             for r in reasons:
                 response += f"- {r}\n"
+        # =========================
+        # 3. SMART ADD MODE (FIXED)
+        # =========================
         else:
             parsed = core.parse_natural_add(user_input)
-            if parsed["my_price"] is not None and parsed["market_price"] is not None:
+            my_price = parsed.get("my_price")
+            market_price = parsed.get("market_price")
+            # -------------------------
+            # SMART VALIDATION
+            # -------------------------
+            valid_prices = (
+                isinstance(my_price, (int, float))
+                and isinstance(market_price, (int, float))
+                and my_price > 0
+                and market_price > 0
+                and abs(my_price - market_price) > 1  # prevents duplicates like 233/233
+            )
+            if valid_prices:
                 result = core.add_item(**parsed)
-                if "error" in result:
+                if isinstance(result, dict) and "error" in result:
                     response = f"⚠️ {result['error']}"
                 else:
-                    response = f"✅ Added **{result['name']}**"
+                    response = (
+                        f"✅ Added **{result['name']}**\n\n"
+                        f"- 💰 You: ${result['my_price']}\n"
+                        f"- 🏪 Market: ${result['market_price']}\n"
+                    )
             else:
-                response = "I didn’t understand that. Try 'what should I buy?' or 'tell me about GPU'."
+                # 🔥 fallback (BUT now less aggressive)
+                response = (
+                    "I couldn't fully confirm both prices.\n\n"
+                    "Try:\n"
+                    "👉 ryzen 7 7700x cpu for 233 usually 399\n"
+                    "👉 gpu 650 vs 799 high\n"
+                )
 
     # =========================
-    # OUTPUT
+    # OUTPUT (ONLY ONCE — FIXED)
     # =========================
     st.session_state.messages.append({"role": "assistant", "content": response})
-    with st.chat_message("assistant"):
-        st.markdown(response)
+    st.chat_message("assistant").markdown(response)

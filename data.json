@@ -48,9 +48,9 @@
     "category": "desk"
   },
   {
-    "name": "ryzen 7 7700x cpu",
-    "my_price": 233.39,
-    "market_price": 233.39,
+    "name": "ryzen 7 7700x",
+    "my_price": 233.0,
+    "market_price": 399.0,
     "priority": "medium",
     "category": "cpu",
     "purchased": false

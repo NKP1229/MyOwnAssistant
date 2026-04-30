@@ -274,22 +274,66 @@ def detect_category(text):
         return "desk"
     return "general"
 
+def is_likely_price(value, window):
+    window = window.lower()
+    # 🚫 ignore obvious CPU/GPU model numbers (7700x, 4090, etc.)
+    if re.search(r"\b\d{3,5}[a-z]?\b", window):
+        # only reject IF no money keywords exist nearby
+        money_words = ["for", "at", "paid", "usually", "msrp", "retail", "cost", "price"]
+        if not any(w in window for w in money_words):
+            return False
+    # 🚫 insane values
+    if value > 10000:
+        return False
+    return True
+
 def parse_natural_add(text):
     text = text.lower()
     category = detect_category(text)
-    my_price, market_price = extract_prices(text)
-    # priority
+    # -----------------------------
+    # STEP 1: extract tagged patterns first (MOST RELIABLE)
+    # -----------------------------
+    patterns = {
+        "my_price": r"(?:for|at|bought|paid)\s*\$?\s*(\d+\.?\d*)",
+        "market_price": r"(?:usually|normally|was|msrp|worth|retail)\s*\$?\s*(\d+\.?\d*)"
+    }
+    my_price = None
+    market_price = None
+    # strong match first
+    my_match = re.search(patterns["my_price"], text)
+    market_match = re.search(patterns["market_price"], text)
+    if my_match:
+        my_price = float(my_match.group(1))
+    if market_match:
+        market_price = float(market_match.group(1))
+    # -----------------------------
+    # STEP 2: fallback ONLY if missing
+    # -----------------------------
+    if my_price is None or market_price is None:
+        numbers = [float(x) for x in re.findall(r"\d+\.?\d*", text)]
+
+        # REMOVE CPU/GPU model numbers like 7700x, 4090
+        cleaned = []
+        for n in numbers:
+            if 100 <= n <= 5000:  # price range filter
+                cleaned.append(n)
+        # assign intelligently
+        if len(cleaned) >= 2:
+            my_price = my_price or cleaned[0]
+            market_price = market_price or cleaned[1]
+        elif len(cleaned) == 1:
+            my_price = my_price or cleaned[0]
+    # -----------------------------
+    # STEP 3: priority
+    # -----------------------------
     if "high" in text:
         priority = "high"
-    elif "medium" in text:
-        priority = "medium"
     elif "low" in text:
         priority = "low"
     else:
         priority = "medium"
-    name = extract_name(text)
     return {
-        "name": name,
+        "name": extract_name(text),
         "my_price": my_price,
         "market_price": market_price,
         "priority": priority,
@@ -297,12 +341,14 @@ def parse_natural_add(text):
     }
 
 def extract_name(text):
-    text = re.split(r"\bfor\b|\bis\b|\bthat\b|\bbut\b", text)[0]
+    text = re.split(r"\bfor\b|\busually\b|\bwas\b|\bat\b|\bprice\b", text)[0]
     words = text.split()
-    stopwords = {"i", "just", "found", "a", "an", "the", "this", "it", "its", "new"}
+    stopwords = {
+        "i", "just", "found", "a", "an", "the", "this",
+        "it", "its", "new", "for", "cpu", "gpu"
+    }
     filtered = [w for w in words if w not in stopwords]
-    # keep more words (important fix)
-    return " ".join(filtered[:5]) or "unknown item"
+    return " ".join(filtered[:6]).strip() or "unknown item"
 
 def extract_category(text):
     mapping = {
@@ -319,38 +365,6 @@ def extract_category(text):
                 return key
     return None
 
-def extract_prices(text):
-    text = text.lower()
-    # ONLY numbers near money words
-    money_keywords = ["for", "cost", "price", "paid", "worth", "usually", "market", "$"]
-    numbers = []
-    tokens = text.split()
-    for i, token in enumerate(tokens):
-        cleaned = token.replace("$", "")
-        if cleaned.replace(".", "", 1).isdigit():
-            value = float(cleaned)
-            window = " ".join(tokens[max(0, i-3): i+3])
-            if is_likely_price(value):
-                numbers.append((value, window))
-    my_price = None
-    market_price = None
-    for value, window in numbers:
-        if any(k in window for k in ["for", "paid", "cost", "got", "buy"]):
-            if my_price is None:
-                my_price = value
-        if any(k in window for k in ["worth", "market", "usually", "normal", "retail"]):
-            if market_price is None:
-                market_price = value
-    # fallback (ONLY clean large numbers, not CPU models)
-    raw = [v for v, _ in numbers]
-    if my_price is None and len(raw) >= 1:
-        my_price = raw[0]
-    if market_price is None and len(raw) >= 2:
-        market_price = raw[1]
-    return my_price, market_price
-
-def is_likely_price(value):
-    return 5 <= value <= 50000
 
 # -------------------------
 # MARK PURCHASED (FIXED)
